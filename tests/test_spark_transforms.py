@@ -61,7 +61,7 @@ def test_streaming_split_valid_invalid():
                     "source_type": "historical_replay",
                     "ingestion_timestamp": "2026-01-01T00:00:00",
                     "json": "{}",
-                    "timestamp": None,
+                    "timestamp": "2026-01-01 00:00:00",
                 },
                 {
                     "iso_code": None,
