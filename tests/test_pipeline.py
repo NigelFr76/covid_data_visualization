@@ -138,7 +138,7 @@ def test_regional_not_enough_observations():
 
 def test_attach_rolling_and_cfr():
     rows = _series("USA", "United States", date(2020, 3, 1), [7] * 7)
-    rows[-1]["total_deaths"] = 7
+    rows[-1]["total_deaths"] = rows[-1]["total_cases"]
     out = attach_rolling_and_cfr(rows)
     assert out[-1]["rolling_7d_cases"] == pytest.approx(7.0)
     assert out[-1]["case_fatality_ratio"] == pytest.approx(100.0)

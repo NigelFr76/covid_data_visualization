@@ -43,7 +43,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-covid_password}
       POSTGRES_DB: ${POSTGRES_DB:-covid_db}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./sql/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
@@ -57,7 +57,7 @@ services:
     image: grafana/grafana:10.1.5
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "${GRAFANA_PORT:-3000}:3000"
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
@@ -81,7 +81,7 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "${API_PORT:-8000}:8000"
     environment:
       PYTHONPATH: /app
       DB_URL: postgresql://${POSTGRES_USER:-covid_user}:${POSTGRES_PASSWORD:-covid_password}@postgres:5432/${POSTGRES_DB:-covid_db}
@@ -103,7 +103,9 @@ services:
       - ./data:/app/data
 
   spark-batch:
-    image: bitnami/spark:3.5.0
+    build:
+      context: .
+      dockerfile: Dockerfile.spark
     profiles: ["batch"]
     user: root
     working_dir: /opt/app
@@ -119,14 +121,14 @@ services:
       postgres:
         condition: service_healthy
     command: >
-      /opt/bitnami/spark/bin/spark-submit
+      /opt/spark/bin/spark-submit
       --master local[2]
       --driver-memory 2g
       /opt/app/spark/batch/process_historical.py --fixture
     restart: "no"
 
   spark-streaming:
-    image: bitnami/spark:3.5.0
+    image: apache/spark:3.5.0-python3
     profiles: ["streaming"]
     user: root
     working_dir: /opt/app
@@ -144,7 +146,7 @@ services:
       kafka:
         condition: service_healthy
     command: >
-      /opt/bitnami/spark/bin/spark-submit
+      /opt/spark/bin/spark-submit
       --master local[2]
       --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0
       --driver-memory 2g
@@ -160,7 +162,7 @@ services:
       SPARK_RPC_ENCRYPTION_ENABLED: "no"
       SPARK_SSL_ENABLED: "no"
     ports:
-      - "8080:8080"
+      - "${SPARK_MASTER_PORT:-8080}:8080"
       - "7077:7077"
     volumes:
       - ./data:/data

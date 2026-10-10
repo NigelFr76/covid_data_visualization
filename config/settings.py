@@ -1,5 +1,10 @@
 import os
 from dataclasses import dataclass
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 
 def _env(name: str, default: str) -> str:
@@ -16,9 +21,12 @@ class Settings:
     postgres_port: str = _env("POSTGRES_PORT", "5432")
     db_url: str = _env(
         "DB_URL",
-        "postgresql://covid_user:covid_password@localhost:5432/covid_db",
+        f"postgresql://{_env('POSTGRES_USER', 'covid_user')}:{_env('POSTGRES_PASSWORD', 'covid_password')}@{_env('POSTGRES_HOST', 'localhost')}:{_env('POSTGRES_PORT', '5432')}/{_env('POSTGRES_DB', 'covid_db')}",
     )
-    jdbc_url: str = _env("JDBC_URL", "jdbc:postgresql://localhost:5432/covid_db")
+    jdbc_url: str = _env(
+        "JDBC_URL",
+        f"jdbc:postgresql://{_env('POSTGRES_HOST', 'localhost')}:{_env('POSTGRES_PORT', '5432')}/{_env('POSTGRES_DB', 'covid_db')}",
+    )
     db_user: str = _env("DB_USER", "covid_user")
     db_password: str = _env("DB_PASSWORD", "covid_password")
     kafka_broker: str = _env("KAFKA_BROKER", "localhost:29092")
