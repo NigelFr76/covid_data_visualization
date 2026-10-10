@@ -1,0 +1,184 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": { "type": "postgres", "uid": "postgres-covid" },
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 0 }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "targets": [{ "datasource": { "type": "postgres", "uid": "postgres-covid" }, "format": "table", "rawQuery": true, "rawSql": "SELECT COALESCE(MAX(total_cases) FILTER (WHERE location = 'World'), MAX(total_cases)) AS \"Total reported cases\" FROM regional_aggregates WHERE source_type = '$source_type';", "refId": "A" }],
+      "title": "Total reported cases",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "postgres-covid" },
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 0 }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "id": 2,
+      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "datasource": { "type": "postgres", "uid": "postgres-covid" }, "format": "table", "rawQuery": true, "rawSql": "SELECT COALESCE(MAX(total_deaths) FILTER (WHERE location = 'World'), MAX(total_deaths)) AS \"Total reported deaths\" FROM regional_aggregates WHERE source_type = '$source_type';", "refId": "A" }],
+      "title": "Total reported deaths",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "postgres-covid" },
+      "fieldConfig": { "defaults": { "unit": "dateTimeAsIso" }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "id": 3,
+      "options": { "colorMode": "none", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "datasource": { "type": "postgres", "uid": "postgres-covid" }, "format": "table", "rawQuery": true, "rawSql": "SELECT MAX(date) AS \"Latest historical reporting date\" FROM regional_aggregates WHERE source_type = 'historical';", "refId": "A" }],
+      "title": "Latest available historical reporting date",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "postgres-covid" },
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "id": 4,
+      "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } },
+      "targets": [{ "datasource": { "type": "postgres", "uid": "postgres-covid" }, "format": "table", "rawQuery": true, "rawSql": "SELECT COUNT(*) AS \"Rows in current source\" FROM regional_aggregates WHERE source_type = '$source_type';", "refId": "A" }],
+      "title": "Rows for selected data source type",
+      "description": "historical = OWID load; historical_replay and synthetic are Kafka pipeline outputs and are kept separate.",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "postgres-covid" },
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 12, "spanNulls": true }, "unit": "none" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "id": 5,
+      "targets": [{ "datasource": { "type": "postgres", "uid": "postgres-covid" }, "format": "time_series", "rawQuery": true, "rawSql": "SELECT date AS time, SUM(new_cases) AS daily_new_cases FROM regional_aggregates WHERE $__timeFilter(date) AND source_type = '$source_type' AND ('$country' = 'All' OR location = '$country') GROUP BY date ORDER BY date;", "refId": "A" }],
+      "title": "Daily new cases",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "postgres-covid" },
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 12, "spanNulls": true }, "unit": "none" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "id": 6,
+      "targets": [{ "datasource": { "type": "postgres", "uid": "postgres-covid" }, "format": "time_series", "rawQuery": true, "rawSql": "SELECT date AS time, SUM(new_deaths) AS daily_new_deaths FROM regional_aggregates WHERE $__timeFilter(date) AND source_type = '$source_type' AND ('$country' = 'All' OR location = '$country') GROUP BY date ORDER BY date;", "refId": "A" }],
+      "title": "Daily new deaths",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "postgres-covid" },
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "lineWidth": 2, "spanNulls": true }, "unit": "none" }, "overrides": [{ "matcher": { "id": "byName", "options": "cases_7d_avg" }, "properties": [{ "id": "custom.lineWidth", "value": 3 }] }] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "id": 7,
+      "targets": [{ "datasource": { "type": "postgres", "uid": "postgres-covid" }, "format": "time_series", "rawQuery": true, "rawSql": "SELECT date AS time, AVG(rolling_7d_cases) AS cases_7d_avg, AVG(rolling_7d_deaths) AS deaths_7d_avg FROM regional_aggregates WHERE $__timeFilter(date) AND source_type = '$source_type' AND ('$country' = 'All' OR location = '$country') GROUP BY date ORDER BY date;", "refId": "A" }],
+      "title": "Seven-day rolling averages (cases and deaths)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "postgres-covid" },
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "spanNulls": true } }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "id": 8,
+      "targets": [{ "datasource": { "type": "postgres", "uid": "postgres-covid" }, "format": "time_series", "rawQuery": true, "rawSql": "SELECT date AS time, location AS metric, SUM(new_cases) AS daily_cases FROM regional_aggregates WHERE $__timeFilter(date) AND source_type = '$source_type' AND location IN ('United States','India','United Kingdom','Brazil','Germany','France','Italy','Japan') GROUP BY date, location ORDER BY date;", "refId": "A" }],
+      "title": "Country-wise comparison of daily cases",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "postgres-covid" },
+      "fieldConfig": { "defaults": { "unit": "percent" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "id": 9,
+      "options": { "orient": "horizontal", "displayMode": "gradient", "showUnfilled": true },
+      "targets": [{ "datasource": { "type": "postgres", "uid": "postgres-covid" }, "format": "table", "rawQuery": true, "rawSql": "SELECT location, percentage_change FROM regional_trend_signals WHERE source_type = '$source_type' AND is_increasing = TRUE ORDER BY percentage_change DESC NULLS LAST LIMIT 15;", "refId": "A" }],
+      "title": "Regional increase signals (recent 7d vs previous 7d)",
+      "description": "Statistical increase in the latest seven-day average of daily cases versus the preceding week. Not an outbreak prediction or medical claim.",
+      "type": "table"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "postgres-covid" },
+      "fieldConfig": { "defaults": { "unit": "percent", "decimals": 2 }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "id": 10,
+      "targets": [{ "datasource": { "type": "postgres", "uid": "postgres-covid" }, "format": "table", "rawQuery": true, "rawSql": "SELECT location, ROUND(AVG(case_fatality_ratio)::numeric, 3) AS cfr_percent FROM regional_aggregates WHERE source_type = '$source_type' AND case_fatality_ratio IS NOT NULL AND continent IS NOT NULL AND continent <> '' AND ('$country' = 'All' OR location = '$country') GROUP BY location ORDER BY cfr_percent DESC NULLS LAST LIMIT 20;", "refId": "A" }],
+      "title": "Case-fatality ratio comparison (%)",
+      "description": "CFR = cumulative deaths / cumulative cases. Sensitive to testing, reporting lags, and age structure. Missing totals are excluded.",
+      "type": "table"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "postgres-covid" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 28 },
+      "id": 11,
+      "options": { "showHeader": true },
+      "targets": [{ "datasource": { "type": "postgres", "uid": "postgres-covid" }, "format": "table", "rawQuery": true, "rawSql": "SELECT location, date, new_cases, new_deaths, rolling_7d_cases, rolling_7d_deaths, ROUND(case_fatality_ratio::numeric, 3) AS cfr_percent, source_type FROM regional_aggregates WHERE $__timeFilter(date) AND source_type = '$source_type' AND ('$country' = 'All' OR location = '$country') ORDER BY date DESC, location LIMIT 200;", "refId": "A" }],
+      "title": "Country-date observations",
+      "type": "table"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "postgres-covid" },
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 36 },
+      "id": 12,
+      "targets": [{ "datasource": { "type": "postgres", "uid": "postgres-covid" }, "format": "table", "rawQuery": true, "rawSql": "SELECT source_type, COUNT(*) AS rows, MIN(date) AS first_date, MAX(date) AS last_date, SUM(new_cases) AS sum_daily_cases FROM regional_aggregates GROUP BY source_type ORDER BY source_type;", "refId": "A" }],
+      "title": "Historical vs replayed vs synthetic identification",
+      "description": "Do not mix synthetic rows into historical KPIs. Grafana variable source_type defaults to historical.",
+      "type": "table"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "postgres-covid" },
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 36 },
+      "id": 13,
+      "targets": [{ "datasource": { "type": "postgres", "uid": "postgres-covid" }, "format": "table", "rawQuery": true, "rawSql": "SELECT s.process_name, s.status, s.records_in, s.records_out, s.records_quarantined, s.last_error, s.updated_at, (SELECT COUNT(*) FROM quarantined_records) AS quarantined_records FROM pipeline_status s ORDER BY s.updated_at DESC;", "refId": "A" }],
+      "title": "Pipeline health, ingestion counts, and processing errors",
+      "type": "table"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "postgres-covid" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 42 },
+      "id": 14,
+      "targets": [{ "datasource": { "type": "postgres", "uid": "postgres-covid" }, "format": "table", "rawQuery": true, "rawSql": "SELECT location, date, recent_7d_avg, previous_7d_avg, percentage_change, is_increasing, observation_count, explanation, source_type FROM regional_trend_signals WHERE source_type = '$source_type' AND ('$country' = 'All' OR location = '$country') ORDER BY is_increasing DESC, percentage_change DESC NULLS LAST LIMIT 50;", "refId": "A" }],
+      "title": "Regional increase signal explanations",
+      "type": "table"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["covid", "spark", "kafka"],
+  "templating": {
+    "list": [
+      {
+        "current": { "selected": true, "text": "historical", "value": "historical" },
+        "hide": 0,
+        "includeAll": false,
+        "label": "Data source type",
+        "name": "source_type",
+        "options": [
+          { "selected": true, "text": "historical", "value": "historical" },
+          { "selected": false, "text": "historical_replay", "value": "historical_replay" },
+          { "selected": false, "text": "synthetic", "value": "synthetic" }
+        ],
+        "query": "historical,historical_replay,synthetic",
+        "skipUrlSync": false,
+        "type": "custom"
+      },
+      {
+        "allValue": "All",
+        "current": { "selected": true, "text": "All", "value": "All" },
+        "datasource": { "type": "postgres", "uid": "postgres-covid" },
+        "definition": "SELECT DISTINCT location FROM regional_aggregates WHERE source_type = 'historical' ORDER BY 1",
+        "includeAll": true,
+        "label": "Country",
+        "name": "country",
+        "query": "SELECT DISTINCT location FROM regional_aggregates WHERE source_type = 'historical' ORDER BY 1",
+        "refresh": 1,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": { "from": "2020-01-01T00:00:00.000Z", "to": "2024-12-31T00:00:00.000Z" },
+  "timezone": "browser",
+  "title": "COVID-19 Analytics Platform",
+  "uid": "covid_main",
+  "version": 2
+}

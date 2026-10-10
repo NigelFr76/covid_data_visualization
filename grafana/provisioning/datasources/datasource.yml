@@ -1,0 +1,17 @@
+apiVersion: 1
+datasources:
+  - name: PostgreSQL
+    uid: postgres-covid
+    type: postgres
+    access: proxy
+    url: postgres:5432
+    user: grafana_reader
+    database: covid_db
+    isDefault: true
+    editable: false
+    secureJsonData:
+      password: grafana_reader_pass
+    jsonData:
+      sslmode: disable
+      postgresVersion: 1500
+      timescaledb: false

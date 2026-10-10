@@ -1,0 +1,189 @@
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "22181:2181"
+    healthcheck:
+      test: ["CMD-SHELL", "cub zk-ready localhost:2181 20"]
+      interval: 15s
+      timeout: 25s
+      retries: 10
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    restart: unless-stopped
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 15s
+      timeout: 10s
+      retries: 12
+
+  postgres:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-covid_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-covid_password}
+      POSTGRES_DB: ${POSTGRES_DB:-covid_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-covid_user} -d ${POSTGRES_DB:-covid_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  grafana:
+    image: grafana/grafana:10.1.5
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/covid.json
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      PYTHONPATH: /app
+      DB_URL: postgresql://${POSTGRES_USER:-covid_user}:${POSTGRES_PASSWORD:-covid_password}@postgres:5432/${POSTGRES_DB:-covid_db}
+      KAFKA_BROKER: kafka:9092
+      KAFKA_TOPIC: covid-raw-records
+      TREND_THRESHOLD_PCT: ${TREND_THRESHOLD_PCT:-10}
+      TREND_MIN_OBS: ${TREND_MIN_OBS:-7}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+    volumes:
+      - ./data:/app/data
+
+  spark-batch:
+    image: bitnami/spark:3.5.0
+    profiles: ["batch"]
+    user: root
+    working_dir: /opt/app
+    environment:
+      PYTHONPATH: /opt/app
+      DB_URL: postgresql://${POSTGRES_USER:-covid_user}:${POSTGRES_PASSWORD:-covid_password}@postgres:5432/${POSTGRES_DB:-covid_db}
+      JDBC_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-covid_db}
+      DB_USER: ${POSTGRES_USER:-covid_user}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-covid_password}
+    volumes:
+      - .:/opt/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      /opt/bitnami/spark/bin/spark-submit
+      --master local[2]
+      --driver-memory 2g
+      /opt/app/spark/batch/process_historical.py --fixture
+    restart: "no"
+
+  spark-streaming:
+    image: bitnami/spark:3.5.0
+    profiles: ["streaming"]
+    user: root
+    working_dir: /opt/app
+    environment:
+      PYTHONPATH: /opt/app
+      DB_URL: postgresql://${POSTGRES_USER:-covid_user}:${POSTGRES_PASSWORD:-covid_password}@postgres:5432/${POSTGRES_DB:-covid_db}
+      KAFKA_BROKER: kafka:9092
+      KAFKA_TOPIC: covid-raw-records
+      CHECKPOINT_LOCATION: /opt/app/data/checkpoints/streaming
+    volumes:
+      - .:/opt/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    command: >
+      /opt/bitnami/spark/bin/spark-submit
+      --master local[2]
+      --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0
+      --driver-memory 2g
+      /opt/app/spark/streaming/process_streaming.py
+    restart: unless-stopped
+
+  spark-master:
+    image: bitnami/spark:3.5.0
+    profiles: ["cluster"]
+    environment:
+      SPARK_MODE: master
+      SPARK_RPC_AUTHENTICATION_ENABLED: "no"
+      SPARK_RPC_ENCRYPTION_ENABLED: "no"
+      SPARK_SSL_ENABLED: "no"
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    volumes:
+      - ./data:/data
+      - ./spark:/opt/bitnami/spark/app
+    restart: unless-stopped
+
+  spark-worker:
+    image: bitnami/spark:3.5.0
+    profiles: ["cluster"]
+    environment:
+      SPARK_MODE: worker
+      SPARK_MASTER_URL: spark://spark-master:7077
+      SPARK_WORKER_MEMORY: 1G
+      SPARK_WORKER_CORES: "1"
+      SPARK_RPC_AUTHENTICATION_ENABLED: "no"
+      SPARK_RPC_ENCRYPTION_ENABLED: "no"
+      SPARK_SSL_ENABLED: "no"
+    depends_on:
+      - spark-master
+    volumes:
+      - ./data:/data
+      - ./spark:/opt/bitnami/spark/app
+    restart: unless-stopped
+
+volumes:
+  pgdata:
