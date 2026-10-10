@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nigel Francy - Big Data Presentation Teleprompter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --card-border: #334155;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-glow: rgba(56, 189, 248, 0.25);
+      --action-bg: #7c2d12;
+      --action-text: #fed7aa;
+      --action-border: #ea580c;
+      --speech-bg: #064e3b;
+      --speech-text: #a7f3d0;
+      --speech-border: #10b981;
+      --code-bg: #090d16;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg);
+      color: var(--text-main);
+      line-height: 1.6;
+      padding-bottom: 80px;
+    }
+
+    /* Fixed Top Teleprompter Bar */
+    .top-bar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--card-border);
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+
+    .presenter-info h1 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .presenter-info p {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+
+    .timer-container {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #1e293b;
+      padding: 6px 14px;
+      border-radius: 9999px;
+      border: 1px solid #475569;
+    }
+
+    .timer-display {
+      font-family: 'Fira Code', monospace;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--accent);
+      min-width: 60px;
+      text-align: center;
+    }
+
+    .timer-btn {
+      background: #334155;
+      color: #fff;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .timer-btn:hover { background: #475569; }
+    .timer-btn.active { background: #ef4444; }
+
+    /* Layout */
+    .container {
+      max-width: 960px;
+      margin: 24px auto;
+      padding: 0 20px;
+    }
+
+    .nav-shortcuts {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding: 12px 0;
+      margin-bottom: 24px;
+    }
+
+    .nav-chip {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: var(--text-muted);
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .nav-chip:hover {
+      border-color: var(--accent);
+      color: var(--text-main);
+      background: #273549;
+    }
+
+    /* Section Cards */
+    .phase-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      margin-bottom: 28px;
+      overflow: hidden;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+      scroll-margin-top: 90px;
+    }
+
+    .phase-header {
+      padding: 16px 22px;
+      background: #162032;
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .phase-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #f1f5f9;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .timestamp-pill {
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--accent);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      font-family: 'Fira Code', monospace;
+    }
+
+    .phase-body {
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    /* Action Box */
+    .action-box {
+      background: rgba(124, 45, 18, 0.2);
+      border: 1px solid var(--action-border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .action-tag {
+      background: var(--action-border);
+      color: #fff;
+      font-size: 0.7rem;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .action-text {
+      font-size: 0.92rem;
+      color: #ffedd5;
+      font-weight: 500;
+    }
+
+    /* Speech Box */
+    .speech-box {
+      background: rgba(6, 78, 59, 0.2);
+      border-left: 4px solid var(--speech-border);
+      border-radius: 0 8px 8px 0;
+      padding: 16px 18px;
+    }
+
+    .speech-tag {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #34d399;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .speech-text {
+      font-size: 1.05rem;
+      line-height: 1.7;
+      color: #e2e8f0;
+      font-weight: 400;
+    }
+
+    .speech-text strong {
+      color: #38bdf8;
+      font-weight: 600;
+    }
+
+    .code-chip {
+      font-family: 'Fira Code', monospace;
+      background: var(--code-bg);
+      color: #f43f5e;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.88rem;
+    }
+
+    /* Viva Q&A Accordion */
+    .viva-card {
+      background: #111c2e;
+      border: 1px solid #1e293b;
+      border-radius: 10px;
+      margin-bottom: 14px;
+      overflow: hidden;
+    }
+
+    .viva-q {
+      padding: 14px 18px;
+      background: #162438;
+      font-weight: 600;
+      font-size: 0.98rem;
+      color: #f8fafc;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .viva-q:hover { background: #1c2e47; }
+
+    .viva-a {
+      padding: 16px 20px;
+      font-size: 0.95rem;
+      color: #cbd5e1;
+      border-top: 1px solid #1e293b;
+      background: #0f1929;
+    }
+
+    .viva-a strong { color: #38bdf8; }
+
+    /* Print styles */
+    @media print {
+      .top-bar, .nav-shortcuts, .timer-container { display: none; }
+      body { background: #fff; color: #000; }
+      .phase-card { border: 1px solid #ccc; background: #fff; page-break-inside: avoid; }
+      .action-box { background: #fff7ed; border-color: #ea580c; color: #000; }
+      .speech-box { background: #f0fdf4; border-color: #10b981; color: #000; }
+      .speech-text { color: #1e293b; }
+      .phase-header { background: #f8fafc; }
+      .phase-title { color: #000; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Teleprompter Bar -->
+  <div class="top-bar">
+    <div class="presenter-info">
+      <h1>🎙️ Presentation Teleprompter: Nigel Francy</h1>
+      <p>PRN: 23070122148 · Big Data Analytics · Focus: Distributed Tech Stack</p>
+    </div>
+    <div class="timer-container">
+      <span class="timer-display" id="timer">00:00</span>
+      <button class="timer-btn" id="startBtn" onclick="toggleTimer()">Start</button>
+      <button class="timer-btn" onclick="resetTimer()">Reset</button>
+    </div>
+  </div>
+
+  <div class="container">
+
+    <!-- Quick Navigation Chips -->
+    <div class="nav-shortcuts">
+      <a href="#phase1" class="nav-chip">1. Hook & Architecture</a>
+      <a href="#phase2" class="nav-chip">2. Spark Window Engine</a>
+      <a href="#phase3" class="nav-chip">3. Live Dashboard Tour</a>
+      <a href="#phase4" class="nav-chip">4. Kafka Streaming</a>
+      <a href="#phase5" class="nav-chip">5. Fault Tolerance & Dead-Letter</a>
+      <a href="#phase6" class="nav-chip">6. Conclusion</a>
+      <a href="#viva" class="nav-chip">💡 Viva Defense Q&A</a>
+    </div>
+
+    <!-- Phase 1 -->
+    <section class="phase-card" id="phase1">
+      <div class="phase-header">
+        <h2 class="phase-title"><span>Phase 1: Hook & Distributed Architecture</span></h2>
+        <span class="timestamp-pill">0:00 - 0:45</span>
+      </div>
+      <div class="phase-body">
+        <div class="action-box">
+          <span class="action-tag">👉 Screen Action</span>
+          <div class="action-text">Have the Grafana Dashboard open in fullscreen at <code>http://localhost:3002/d/covid_main/covid-19-analytics-platform</code>. Rest your mouse pointer near the top header bar.</div>
+        </div>
+        <div class="speech-box">
+          <span class="speech-tag">🗣️ What to Say (Word-for-Word)</span>
+          <p class="speech-text">
+            "Good morning, respected professors and evaluators. My name is <strong>Nigel Francy</strong>, and today I am presenting an end-to-end distributed Big Data Analytics and Real-Time Surveillance Platform.<br><br>
+            While the telemetry represents longitudinal records comprising over <strong>429,000 observations across 255 countries</strong>, the primary focus of this engineering project is <strong>how we solve the classic Big Data challenges of Volume, Velocity, Variety, and Veracity using a modern distributed systems stack</strong>.<br><br>
+            Rather than relying on single-node scripts that crash under memory pressure, this system integrates <strong>Apache Spark</strong> for distributed batch window computations, <strong>Apache Kafka</strong> for decoupled event streaming, <strong>Spark Structured Streaming</strong> for micro-batch ingestion, <strong>PostgreSQL</strong> as an indexed analytical warehouse, and <strong>Grafana</strong> for decoupled sub-second visual intelligence."
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Phase 2 -->
+    <section class="phase-card" id="phase2">
+      <div class="phase-header">
+        <h2 class="phase-title"><span>Phase 2: Deep-Dive: Distributed PySpark Batch Engine</span></h2>
+        <span class="timestamp-pill">0:45 - 1:45</span>
+      </div>
+      <div class="phase-body">
+        <div class="action-box">
+          <span class="action-tag">👉 Screen Action</span>
+          <div class="action-text">Hover your mouse pointer over Panel 7 ("Seven-day rolling averages") and the daily case timeseries panels.</div>
+        </div>
+        <div class="speech-box">
+          <span class="speech-tag">🗣️ What to Say (Word-for-Word)</span>
+          <p class="speech-text">
+            "Let's look at the data engineering under the hood in <strong>Apache Spark</strong>:<br><br>
+            <strong>1. Handling Data Veracity in Spark:</strong><br>
+            Epidemiological reporting is notorious for retroactive adjustments—authorities frequently reduce cumulative figures to correct false positives. A naive subtraction in SQL or Pandas converts a cumulative drop into a massive fake negative daily spike.<br>
+            In PySpark, we implemented a custom <strong>revision isolation protocol</strong>: using Window lag functions, whenever a negative derived count occurs, we flag it as <span class="code-chip">revision_flag = True</span>, preserve the original reported value for auditing, and set the calculation denominator to <span class="code-chip">NULL</span> so downstream moving averages are never corrupted.<br><br>
+            <strong>2. Distributed Window Partitions:</strong><br>
+            To smooth out weekend reporting delays, PySpark applies distributed window partitions:<br>
+            <span class="code-chip">avg(daily_cases) OVER (PARTITION BY iso_code ORDER BY date ROWS BETWEEN -6 AND 0)</span><br>
+            This executes across parallel Spark worker threads and persists cleaned data into columnar <strong>Apache Parquet</strong> partitions, reducing storage by over 70% while enabling high-speed predicate pushdown."
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Phase 3 -->
+    <section class="phase-card" id="phase3">
+      <div class="phase-header">
+        <h2 class="phase-title"><span>Phase 3: Live Dashboard Tour: Decoupled SQL & Analytical Cubes</span></h2>
+        <span class="timestamp-pill">1:45 - 3:00</span>
+      </div>
+      <div class="phase-body">
+        <div class="action-box">
+          <span class="action-tag">👉 Screen Action</span>
+          <div class="action-text">Point cursor at the four top Stat Cards (775.8M cases, 7.05M deaths), then scroll down slightly to Panel 9 ("Regional increase signals").</div>
+        </div>
+        <div class="speech-box">
+          <span class="speech-tag">🗣️ What to Say (Word-for-Word)</span>
+          <p class="speech-text">
+            "Now let's explore the live dashboard in front of us:<br><br>
+            <strong>1. Sub-Second Query Execution:</strong><br>
+            Notice how fast these panels load. We deliberately decoupled analytical ingestion from visualization. Grafana never queries heavy raw logs directly. Instead, Spark pre-computes analytical cubes into PostgreSQL, and Grafana connects via a dedicated, read-only <strong>grafana_reader</strong> role.<br><br>
+            <strong>2. Stat Cards (Top Row):</strong><br>
+            Here you see our pre-aggregated totals: <strong>775.8 Million confirmed cases</strong>, <strong>7.05 Million deaths</strong>, tracking observations through August 2024 across <strong>15,087 core country-date records</strong>.<br><br>
+            <strong>3. Smoothed Trends vs. Raw Noise:</strong><br>
+            Comparing the raw daily spikes in the upper graph with our smooth 7-day rolling window below shows how the Spark window algorithm filters high-frequency noise and highlights macroeconomic waves, like the global Omicron surge in early 2022.<br><br>
+            <strong>4. Analytical Velocity Indicators (Table Panel 9):</strong><br>
+            Down here, our engine computes moving velocity ratios: comparing the latest 7-day mean against the preceding 7-day baseline:<br>
+            <span class="code-chip">((recent_7d - previous_7d) / previous_7d) * 100%</span><br>
+            Any entity exceeding our 10% threshold is automatically flagged with statistical surge diagnostics."
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Phase 4 -->
+    <section class="phase-card" id="phase4">
+      <div class="phase-header">
+        <h2 class="phase-title"><span>Phase 4: Dual-Track Streaming: Apache Kafka & Structured Streaming</span></h2>
+        <span class="timestamp-pill">3:00 - 4:00</span>
+      </div>
+      <div class="phase-body">
+        <div class="action-box">
+          <span class="action-tag">👉 Screen Action</span>
+          <div class="action-text">Click the <strong>'source_type'</strong> dropdown at the top left of the dashboard. Point out <code>historical</code>, <code>historical_replay</code>, and <code>synthetic</code>.</div>
+        </div>
+        <div class="speech-box">
+          <span class="speech-tag">🗣️ What to Say (Word-for-Word)</span>
+          <p class="speech-text">
+            "One of the key engineering highlights of this project is our <strong>dual-track streaming architecture</strong>:<br><br>
+            In enterprise data pipelines, you must prevent simulated or streaming records from polluting official historical data. We solved this by enforcing strict source-type partitioning:<br>
+            <strong>1. historical:</strong> Represents verified, immutable Our World in Data batch loads.<br>
+            <strong>2. historical_replay:</strong> Historical rows re-streamed through an <strong>Apache Kafka topic (<span class="code-chip">covid-raw-records</span>)</strong> to simulate real-time ingestion.<br>
+            <strong>3. synthetic:</strong> A live event generator simulating real-time telemetry from clinics.<br><br>
+            On the consumer side, <strong>Spark Structured Streaming</strong> consumes micro-batches from Kafka with <strong>checkpointed offsets</strong>. Delivery is <strong>at-least-once</strong>: if a broker or node fails, Spark resumes from the exact committed Kafka offset, while our database upsert logic handles deduplication."
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Phase 5 -->
+    <section class="phase-card" id="phase5">
+      <div class="phase-header">
+        <h2 class="phase-title"><span>Phase 5: Reliability, Idempotent Storage & Schema Quarantining</span></h2>
+        <span class="timestamp-pill">4:00 - 4:45</span>
+      </div>
+      <div class="phase-body">
+        <div class="action-box">
+          <span class="action-tag">👉 Screen Action</span>
+          <div class="action-text">Scroll down to Panel 13: <em>'Pipeline health, ingestion counts, and processing errors'</em>.</div>
+        </div>
+        <div class="speech-box">
+          <span class="speech-tag">🗣️ What to Say (Word-for-Word)</span>
+          <p class="speech-text">
+            "Finally, let's look at enterprise resilience and fault tolerance:<br><br>
+            In production pipelines, unhandled malformed data will crash processing clusters. To prevent this, we built a <strong>dead-letter quarantine engine</strong>:<br>
+            - Every record without a valid ISO-3166 country code or unparseable timestamp is isolated into a PostgreSQL <span class="code-chip">quarantined_records</span> table with the raw payload in a <span class="code-chip">JSONB</span> column and the exact failure reason.<br>
+            - Look at Panel 13: It live-audits our pipeline health: tracking input counts, output counts, and quarantined records in real time.<br>
+            - Furthermore, our PostgreSQL storage uses composite keys: <span class="code-chip">PRIMARY KEY (iso_code, date, source_type)</span>. All ingestion operates using <span class="code-chip">ON CONFLICT DO UPDATE</span>. This guarantees <strong>complete idempotency</strong>—meaning any batch or streaming micro-batch can be re-run indefinitely without generating duplicate rows."
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Phase 6 -->
+    <section class="phase-card" id="phase6">
+      <div class="phase-header">
+        <h2 class="phase-title"><span>Phase 6: Conclusion & Wrap-Up</span></h2>
+        <span class="timestamp-pill">4:45 - 5:15</span>
+      </div>
+      <div class="phase-body">
+        <div class="action-box">
+          <span class="action-tag">👉 Screen Action</span>
+          <div class="action-text">Scroll smoothly back to the top of the dashboard showing the global view.</div>
+        </div>
+        <div class="speech-box">
+          <span class="speech-tag">🗣️ What to Say (Word-for-Word)</span>
+          <p class="speech-text">
+            "To summarize:<br>
+            This project demonstrates how <strong>Apache Spark, Apache Kafka, PostgreSQL, FastAPI, and Grafana</strong> work together to create an observable, fault-tolerant, high-performance big data pipeline. We have verified the pipeline with a 26-test automated suite covering data cleaning, PySpark transforms, API endpoints, and streaming serialization.<br><br>
+            Thank you, professors. I am now open to your technical questions."
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Viva Q&A -->
+    <section class="phase-card" id="viva">
+      <div class="phase-header">
+        <h2 class="phase-title"><span>💡 Technical Viva Q&A Defense Guide</span></h2>
+        <span class="timestamp-pill">Rapid-Fire Answers</span>
+      </div>
+      <div class="phase-body">
+
+        <div class="viva-card">
+          <div class="viva-q">Q1: "Why did you use Apache Spark instead of Pandas or plain PostgreSQL queries?"</div>
+          <div class="viva-a">
+            "Pandas is single-threaded and bounded by host RAM. On multi-gigabyte or streaming datasets, computing longitudinal rolling averages across 255 countries causes Out-Of-Memory (OOM) exceptions. Plain SQL window queries on raw logs also degrade dashboard responsiveness because every viewer forces full-table aggregations.<br>
+            <strong>Apache Spark</strong> gives us distributed in-memory partitioning, resilient distributed datasets, lazy evaluation, and the ability to export optimized columnar Parquet partitions. Furthermore, PySpark uses the exact same DataFrame logic for both batch ETL and real-time Structured Streaming."
+          </div>
+        </div>
+
+        <div class="viva-card">
+          <div class="viva-q">Q2: "How do you guarantee data consistency and handle duplicate records in Kafka?"</div>
+          <div class="viva-a">
+            "We implement <strong>at-least-once delivery with idempotent writes</strong>:<br>
+            In Kafka and Spark Structured Streaming, offsets are persisted to a write-ahead log checkpoint directory (<span class="code-chip">data/checkpoints/streaming</span>). If a worker dies, Spark replays from the last checkpoint.<br>
+            In PostgreSQL, our tables enforce a composite primary key: <span class="code-chip">(iso_code, date, source_type)</span>. All batch and streaming inserts use PostgreSQL's <span class="code-chip">ON CONFLICT (iso_code, date, source_type) DO UPDATE</span>. This makes all upserts mathematically idempotent—replaying a Kafka topic or re-running a batch job never creates duplicate observations."
+          </div>
+        </div>
+
+        <div class="viva-card">
+          <div class="viva-q">Q3: "What is your revision handling rule and why is it important?"</div>
+          <div class="viva-a">
+            "In public health datasets, cumulative numbers are frequently revised downward to correct past overcounting. If you simply calculate daily cases as delta between day t and t-1, a downward revision of 5,000 cases looks like -5,000 new infections on that day.<br>
+            Our Spark pipeline flags rows where derived daily cases are negative as <span class="code-chip">revision_flag = True</span>. We store the original reported value in <span class="code-chip">original_new_cases</span> for auditability, but set the analytical <span class="code-chip">daily_cases</span> to <span class="code-chip">NULL</span>. This ensures rolling 7-day averages skip the restatement day rather than displaying fake negative incidence."
+          </div>
+        </div>
+
+        <div class="viva-card">
+          <div class="viva-q">Q4: "How does Grafana query the database without impacting pipeline ingestion?"</div>
+          <div class="viva-a">
+            "We established strict architectural decoupling:<br>
+            1. Ingestion jobs write using the privileged <strong>covid_user</strong> role.<br>
+            2. Grafana connects through a restricted, dedicated role called <strong>grafana_reader</strong>, which is granted <span class="code-chip">SELECT</span> privileges only.<br>
+            3. Grafana queries pre-aggregated dimensional tables (<span class="code-chip">regional_aggregates</span> and <span class="code-chip">regional_trend_signals</span>) indexed on <span class="code-chip">(source_type, date)</span> and <span class="code-chip">(location, date)</span>, ensuring queries execute in sub-millisecond index scans rather than full table scans."
+          </div>
+        </div>
+
+        <div class="viva-card">
+          <div class="viva-q">Q5: "What is the role of FastAPI in this project if Grafana is already there?"</div>
+          <div class="viva-a">
+            "Grafana is purely a read-only visual analytics layer. It cannot trigger pipeline operations.<br>
+            FastAPI acts as our programmable control plane and REST microservice:<br>
+            - It exposes <span class="code-chip">/health</span> and <span class="code-chip">/api/pipeline/status</span> for orchestration monitoring.<br>
+            - It exposes <span class="code-chip">/api/summary</span> and <span class="code-chip">/api/trends</span> for external microservices or mobile apps.<br>
+            - Most importantly, it exposes POST endpoints (<span class="code-chip">/api/pipeline/replay/start</span> and <span class="code-chip">/stop</span>) to programmatically trigger asynchronous Kafka event producers."
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    let timerSeconds = 0;
+    let timerInterval = null;
+    let isRunning = false;
+
+    function formatTime(totalSeconds) {
+      const mins = Math.floor(totalSeconds / 60);
+      const secs = totalSeconds % 60;
+      return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    function updateDisplay() {
+      document.getElementById('timer').textContent = formatTime(timerSeconds);
+    }
+
+    function toggleTimer() {
+      const btn = document.getElementById('startBtn');
+      if (!isRunning) {
+        isRunning = true;
+        btn.textContent = 'Pause';
+        btn.classList.add('active');
+        timerInterval = setInterval(() => {
+          timerSeconds++;
+          updateDisplay();
+        }, 1000);
+      } else {
+        isRunning = false;
+        btn.textContent = 'Resume';
+        btn.classList.remove('active');
+        clearInterval(timerInterval);
+      }
+    }
+
+    function resetTimer() {
+      isRunning = false;
+      clearInterval(timerInterval);
+      timerSeconds = 0;
+      updateDisplay();
+      const btn = document.getElementById('startBtn');
+      btn.textContent = 'Start';
+      btn.classList.remove('active');
+    }
+  </script>
+</body>
+</html>
